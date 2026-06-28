@@ -1,0 +1,30 @@
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environment variables (NEVER commit API keys)
+.env
+
+# ChromaDB vector stores
+chroma_db/
+chroma_db_url/
+Chroma_db/
+
+# Uploaded files / temp
+uploads/
+*.pdf
+*.tmp
+
+# VS Code
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
