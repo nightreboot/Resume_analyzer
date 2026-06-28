@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+langchain
+chromadb
+sentence-transformers
+pymupdf
+spacy
+python-dotenv
+scikit-learn
+pytesseract
+langchain_nvidia_ai_endpoints
+langchain_huggingface 
+langchain_mistralai
+langchain-chroma 
+langchain-text-splitters

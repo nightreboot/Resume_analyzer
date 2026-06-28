@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ResumeIQ — ATS Analyzer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    /* ─── Design Tokens ─────────────────────────────── */
+    :root {
+      --ink:        #0f0f11;
+      --ink-soft:   #3d3d45;
+      --ink-ghost:  #8888a0;
+      --surface:    #f7f6f2;
+      --white:      #ffffff;
+      --accent:     #5b4cff;
+      --accent-dim: #dddaff;
+      --accent-glow:#5b4cff22;
+      --pass:       #17b978;
+      --warn:       #f59e0b;
+      --fail:       #ef4444;
+      --border:     #e2e1e9;
+      --radius:     14px;
+      --radius-sm:  8px;
+      --shadow:     0 2px 16px 0 rgba(15,15,17,.08);
+      --shadow-lg:  0 8px 40px 0 rgba(91,76,255,.15);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--surface);
+      color: var(--ink);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ─── Header ─────────────────────────────────────── */
+    header {
+      position: sticky; top: 0; z-index: 50;
+      background: rgba(247,246,242,.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 clamp(20px, 5vw, 60px);
+      display: flex; align-items: center; justify-content: space-between;
+      height: 60px;
+    }
+
+    .logo {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.35rem;
+      color: var(--ink);
+      letter-spacing: -.5px;
+    }
+    .logo span { color: var(--accent); }
+
+    .badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .68rem;
+      font-weight: 500;
+      letter-spacing: .04em;
+      background: var(--accent-dim);
+      color: var(--accent);
+      padding: 3px 10px;
+      border-radius: 100px;
+    }
+
+    /* ─── Hero ───────────────────────────────────────── */
+    .hero {
+      text-align: center;
+      padding: clamp(48px, 8vw, 96px) clamp(20px, 5vw, 60px) clamp(32px, 5vw, 56px);
+    }
+
+    .hero-eyebrow {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .75rem;
+      letter-spacing: .12em;
+      color: var(--accent);
+      text-transform: uppercase;
+      margin-bottom: 18px;
+    }
+
+    .hero h1 {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(2.4rem, 6vw, 4.2rem);
+      line-height: 1.1;
+      letter-spacing: -.03em;
+      color: var(--ink);
+      max-width: 720px;
+      margin: 0 auto 20px;
+    }
+    .hero h1 em {
+      font-style: italic;
+      color: var(--accent);
+    }
+
+    .hero-sub {
+      font-size: 1rem;
+      color: var(--ink-soft);
+      max-width: 480px;
+      margin: 0 auto;
+      line-height: 1.65;
+    }
+
+    /* ─── Main card ──────────────────────────────────── */
+    .container {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 0 clamp(16px, 4vw, 40px) 80px;
+    }
+
+    .card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: clamp(28px, 4vw, 48px);
+      box-shadow: var(--shadow);
+    }
+
+    /* ─── Upload zone ────────────────────────────────── */
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 48px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+      position: relative;
+      outline: none;
+    }
+    .drop-zone:hover, .drop-zone.drag-over {
+      border-color: var(--accent);
+      background: var(--accent-glow);
+    }
+    .drop-zone input[type="file"] {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      opacity: 0; cursor: pointer;
+    }
+
+    .drop-icon {
+      width: 52px; height: 52px;
+      background: var(--accent-dim);
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 16px;
+    }
+    .drop-icon svg { color: var(--accent); }
+
+    .drop-label {
+      font-size: .95rem;
+      font-weight: 500;
+      color: var(--ink);
+    }
+    .drop-sub {
+      font-size: .8rem;
+      color: var(--ink-ghost);
+      margin-top: 6px;
+    }
+
+    /* File preview chip */
+    .file-chip {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      background: var(--accent-dim);
+      border-radius: 100px;
+      padding: 8px 14px 8px 10px;
+      width: fit-content;
+      margin: 16px auto 0;
+    }
+    .file-chip.visible { display: flex; }
+    .file-chip-icon {
+      width: 28px; height: 28px;
+      background: var(--accent);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .file-chip-name {
+      font-size: .82rem;
+      font-weight: 500;
+      color: var(--accent);
+      max-width: 240px;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .file-chip-remove {
+      background: none; border: none;
+      cursor: pointer; color: var(--accent);
+      display: flex; align-items: center;
+      padding: 0; margin-left: 4px;
+    }
+
+    /* ─── Divider ─────────────────────────────────────── */
+    .divider {
+      display: flex; align-items: center; gap: 14px;
+      margin: 28px 0;
+    }
+    .divider::before, .divider::after {
+      content: ''; flex: 1; height: 1px;
+      background: var(--border);
+    }
+    .divider-label {
+      font-size: .75rem;
+      font-family: 'JetBrains Mono', monospace;
+      letter-spacing: .08em;
+      color: var(--ink-ghost);
+    }
+
+    /* ─── Textarea ───────────────────────────────────── */
+    .field-label {
+      font-size: .8rem;
+      font-weight: 600;
+      letter-spacing: .04em;
+      color: var(--ink-soft);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    textarea {
+      width: 100%;
+      height: 180px;
+      padding: 14px 16px;
+      font-family: 'Inter', sans-serif;
+      font-size: .9rem;
+      line-height: 1.6;
+      color: var(--ink);
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      resize: vertical;
+      outline: none;
+      transition: border-color .2s;
+    }
+    textarea:focus { border-color: var(--accent); }
+    textarea::placeholder { color: var(--ink-ghost); }
+
+    /* ─── Button ─────────────────────────────────────── */
+    .btn-analyze {
+      width: 100%;
+      margin-top: 24px;
+      padding: 16px;
+      font-family: 'Inter', sans-serif;
+      font-size: .95rem;
+      font-weight: 600;
+      color: var(--white);
+      background: var(--accent);
+      border: none;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      letter-spacing: .01em;
+      transition: opacity .2s, transform .1s, box-shadow .2s;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn-analyze:hover:not(:disabled) {
+      opacity: .9;
+      box-shadow: var(--shadow-lg);
+    }
+    .btn-analyze:active:not(:disabled) { transform: scale(.99); }
+    .btn-analyze:disabled { opacity: .5; cursor: not-allowed; }
+
+    /* ─── Loader ──────────────────────────────────────── */
+    .loader-wrap {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      padding: 48px 0 32px;
+    }
+    .loader-wrap.visible { display: flex; }
+
+    .spinner {
+      width: 44px; height: 44px;
+      border: 3px solid var(--accent-dim);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loader-steps {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    .loader-step {
+      font-size: .82rem;
+      color: var(--ink-ghost);
+      display: flex; align-items: center; gap: 8px;
+      transition: color .3s;
+    }
+    .loader-step.active { color: var(--accent); font-weight: 500; }
+    .loader-step.done { color: var(--pass); }
+    .step-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    /* ─── Results ─────────────────────────────────────── */
+    #results { display: none; }
+    #results.visible { display: block; }
+
+    .result-header {
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .result-title {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.5rem;
+      color: var(--ink);
+    }
+
+    .ats-score-ring {
+      position: relative;
+      width: 90px; height: 90px;
+      flex-shrink: 0;
+    }
+    .ats-score-ring svg { transform: rotate(-90deg); }
+    .score-track { fill: none; stroke: var(--accent-dim); stroke-width: 7; }
+    .score-fill  { fill: none; stroke-width: 7; stroke-linecap: round;
+                   transition: stroke-dashoffset .8s cubic-bezier(.4,0,.2,1); }
+    .score-text {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+    }
+    .score-num {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.4rem; line-height: 1;
+      color: var(--ink);
+    }
+    .score-lbl {
+      font-size: .6rem;
+      font-family: 'JetBrains Mono', monospace;
+      letter-spacing: .06em;
+      color: var(--ink-ghost);
+    }
+
+    /* Sections */
+    .result-sections { display: flex; flex-direction: column; gap: 20px; }
+
+    .result-section {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .section-head {
+      display: flex; align-items: center; gap: 10px;
+      padding: 14px 18px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .section-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .section-head h3 {
+      font-size: .82rem;
+      font-weight: 600;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+    }
+
+    .section-body {
+      padding: 16px 18px;
+      background: var(--white);
+    }
+
+    .section-body ul {
+      list-style: none;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+
+    .section-body ul li {
+      font-size: .88rem;
+      line-height: 1.55;
+      color: var(--ink-soft);
+      padding-left: 18px;
+      position: relative;
+    }
+    .section-body ul li::before {
+      content: '→';
+      position: absolute; left: 0;
+      color: inherit;
+      font-size: .78rem;
+    }
+
+    .verdict-box {
+      background: linear-gradient(135deg, var(--accent-dim), #f0eeff);
+      border: 1px solid var(--accent-dim);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+    }
+    .verdict-box p {
+      font-size: .92rem;
+      line-height: 1.65;
+      color: var(--ink);
+    }
+
+    /* Raw output fallback */
+    .raw-output {
+      font-family: 'Inter', sans-serif;
+      font-size: .88rem;
+      line-height: 1.7;
+      color: var(--ink-soft);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    /* Reset button */
+    .btn-reset {
+      margin-top: 28px;
+      background: none;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px 22px;
+      font-family: 'Inter', sans-serif;
+      font-size: .85rem;
+      font-weight: 500;
+      color: var(--ink-soft);
+      cursor: pointer;
+      transition: border-color .2s, color .2s;
+    }
+    .btn-reset:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* Error banner */
+    .error-banner {
+      display: none;
+      align-items: center;
+      gap: 12px;
+      background: #fff5f5;
+      border: 1px solid #fecaca;
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      margin-top: 16px;
+    }
+    .error-banner.visible { display: flex; }
+    .error-banner p {
+      font-size: .85rem;
+      color: var(--fail);
+    }
+
+    /* ─── Footer ──────────────────────────────────────── */
+    footer {
+      text-align: center;
+      padding: 32px 20px;
+      font-size: .76rem;
+      color: var(--ink-ghost);
+      border-top: 1px solid var(--border);
+    }
+
+    /* ─── Responsive ──────────────────────────────────── */
+    @media (max-width: 520px) {
+      .result-header { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Resume<span>IQ</span></div>
+  <span class="badge">ATS Powered</span>
+</header>
+
+<section class="hero">
+  <p class="hero-eyebrow">AI Resume Analyzer</p>
+  <h1>Get your resume <em>seen</em> by the right people</h1>
+  <p class="hero-sub">Upload your resume and paste a job description. Our AI scores your ATS compatibility and tells you exactly what to fix.</p>
+</section>
+
+<main class="container">
+  <div class="card" id="main-card">
+
+    <!-- Upload -->
+    <p class="field-label">Your Resume</p>
+    <div class="drop-zone" id="dropZone" tabindex="0" role="button" aria-label="Upload resume file">
+      <input type="file" id="fileInput" accept=".pdf,.png,.jpg,.jpeg" />
+      <div class="drop-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+      </div>
+      <p class="drop-label">Drop your resume here or click to browse</p>
+      <p class="drop-sub">PDF, PNG, JPG, JPEG — max 10 MB</p>
+    </div>
+
+    <div class="file-chip" id="fileChip">
+      <div class="file-chip-icon">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+        </svg>
+      </div>
+      <span class="file-chip-name" id="chipName"></span>
+      <button class="file-chip-remove" id="removeFile" aria-label="Remove file">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="divider"><span class="divider-label">then</span></div>
+
+    <!-- Job description -->
+    <p class="field-label">Job Description</p>
+    <textarea id="jobDesc" placeholder="Paste the full job description here — include skills, responsibilities, and requirements for the best analysis…"></textarea>
+
+    <div class="error-banner" id="errorBanner">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" flex-shrink="0">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      <p id="errorMsg"></p>
+    </div>
+
+    <button class="btn-analyze" id="analyzeBtn">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      Analyze Resume
+    </button>
+
+    <!-- Loader -->
+    <div class="loader-wrap" id="loader">
+      <div class="spinner"></div>
+      <div class="loader-steps">
+        <div class="loader-step" id="step1"><span class="step-dot"></span>Extracting resume text…</div>
+        <div class="loader-step" id="step2"><span class="step-dot"></span>Building semantic index…</div>
+        <div class="loader-step" id="step3"><span class="step-dot"></span>Matching against job description…</div>
+        <div class="loader-step" id="step4"><span class="step-dot"></span>Generating ATS report…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div id="results">
+    <div class="card">
+      <div class="result-header">
+        <div>
+          <p style="font-size:.75rem;font-family:'JetBrains Mono',monospace;letter-spacing:.08em;color:var(--ink-ghost);text-transform:uppercase;margin-bottom:6px;" id="resultFilename"></p>
+          <h2 class="result-title">ATS Analysis Report</h2>
+        </div>
+        <div class="ats-score-ring" id="scoreRing">
+          <svg viewBox="0 0 90 90" width="90" height="90">
+            <circle class="score-track" cx="45" cy="45" r="38" />
+            <circle class="score-fill" id="scoreFill" cx="45" cy="45" r="38"
+              stroke-dasharray="238.76"
+              stroke-dashoffset="238.76" />
+          </svg>
+          <div class="score-text">
+            <span class="score-num" id="scoreNum">—</span>
+            <span class="score-lbl">ATS</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="result-sections" id="resultSections"></div>
+
+      <button class="btn-reset" id="resetBtn">← Analyze another resume</button>
+    </div>
+  </div>
+</main>
+
+<footer>ResumeIQ — AI-powered ATS scoring &amp; resume intelligence</footer>
+
+<script>
+  // ─── State ───────────────────────────────────────────
+  const API_BASE = 'http://localhost:8000';
+  let selectedFile = null;
+
+  // ─── Elements ─────────────────────────────────────────
+  const dropZone    = document.getElementById('dropZone');
+  const fileInput   = document.getElementById('fileInput');
+  const fileChip    = document.getElementById('fileChip');
+  const chipName    = document.getElementById('chipName');
+  const removeFile  = document.getElementById('removeFile');
+  const jobDesc     = document.getElementById('jobDesc');
+  const analyzeBtn  = document.getElementById('analyzeBtn');
+  const loader      = document.getElementById('loader');
+  const mainCard    = document.getElementById('main-card');
+  const results     = document.getElementById('results');
+  const resetBtn    = document.getElementById('resetBtn');
+  const errorBanner = document.getElementById('errorBanner');
+  const errorMsg    = document.getElementById('errorMsg');
+  const steps       = [1,2,3,4].map(n => document.getElementById('step'+n));
+
+  // ─── File handling ────────────────────────────────────
+  function setFile(file) {
+    selectedFile = file;
+    chipName.textContent = file.name;
+    fileChip.classList.add('visible');
+    dropZone.querySelector('.drop-label').textContent = 'File selected ✓';
+  }
+
+  function clearFile() {
+    selectedFile = null;
+    fileInput.value = '';
+    fileChip.classList.remove('visible');
+    dropZone.querySelector('.drop-label').textContent = 'Drop your resume here or click to browse';
+  }
+
+  fileInput.addEventListener('change', e => {
+    if (e.target.files[0]) setFile(e.target.files[0]);
+  });
+
+  removeFile.addEventListener('click', e => {
+    e.stopPropagation(); clearFile();
+  });
+
+  dropZone.addEventListener('dragover', e => {
+    e.preventDefault(); dropZone.classList.add('drag-over');
+  });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault(); dropZone.classList.remove('drag-over');
+    if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
+  });
+
+  // ─── Error banner ─────────────────────────────────────
+  function showError(msg) {
+    errorMsg.textContent = msg;
+    errorBanner.classList.add('visible');
+  }
+  function hideError() { errorBanner.classList.remove('visible'); }
+
+  // ─── Loader steps ─────────────────────────────────────
+  let stepTimer;
+  function animateSteps() {
+    let i = 0;
+    steps.forEach(s => { s.className = 'loader-step'; });
+    steps[0].classList.add('active');
+    stepTimer = setInterval(() => {
+      if (i < steps.length - 1) {
+        steps[i].classList.remove('active'); steps[i].classList.add('done');
+        i++; steps[i].classList.add('active');
+      }
+    }, 2200);
+  }
+  function stopSteps() { clearInterval(stepTimer); }
+
+  // ─── Analyze ──────────────────────────────────────────
+  analyzeBtn.addEventListener('click', async () => {
+    hideError();
+    if (!selectedFile) { showError('Please upload your resume first.'); return; }
+    if (!jobDesc.value.trim()) { showError('Please paste a job description.'); return; }
+
+    // Show loader
+    analyzeBtn.disabled = true;
+    loader.classList.add('visible');
+    animateSteps();
+
+    const form = new FormData();
+    form.append('file', selectedFile);
+    form.append('job_description', jobDesc.value.trim());
+
+    try {
+      const res = await fetch(`${API_BASE}/analyze`, { method: 'POST', body: form });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.detail || 'Server error');
+
+      stopSteps();
+      loader.classList.remove('visible');
+      analyzeBtn.disabled = false;
+
+      renderResults(data);
+
+    } catch (err) {
+      stopSteps();
+      loader.classList.remove('visible');
+      analyzeBtn.disabled = false;
+      showError(err.message || 'Something went wrong. Make sure the backend is running on port 8000.');
+    }
+  });
+
+  // ─── Parse & render results ───────────────────────────
+  function parseAnalysis(text) {
+    const sections = {};
+
+    // ATS Score
+    const scoreMatch = text.match(/ATS Score[:\s]+(\d+)/i);
+    sections.score = scoreMatch ? parseInt(scoreMatch[1]) : null;
+
+    // Sections to extract
+    const sectionMap = [
+      { key: 'matched',      label: 'Matched Skills',          color: '#17b978' },
+      { key: 'missing',      label: 'Missing Skills',           color: '#ef4444' },
+      { key: 'strengths',    label: 'Strengths',               color: '#5b4cff' },
+      { key: 'weaknesses',   label: 'Weaknesses',              color: '#f59e0b' },
+      { key: 'suggestions',  label: 'Improvement Suggestions', color: '#0891b2' },
+      { key: 'keywords',     label: 'Suggested Keywords',      color: '#7c3aed' },
+    ];
+
+    for (const sec of sectionMap) {
+      const re = new RegExp(`${sec.label}[:\\s]*([\\s\\S]*?)(?=\\n(?:Matched Skills|Missing Skills|Strengths|Weaknesses|Improvement Suggestions|Suggested Keywords|Final Verdict)|$)`, 'i');
+      const m = text.match(re);
+      if (m) {
+        const items = m[1].split('\n')
+          .map(l => l.replace(/^[-•*]\s*/, '').trim())
+          .filter(l => l.length > 2);
+        if (items.length) sections[sec.key] = { label: sec.label, items, color: sec.color };
+      }
+    }
+
+    // Final verdict
+    const verdictMatch = text.match(/Final Verdict[:\s]*([\s\S]+?)$/i);
+    if (verdictMatch) sections.verdict = verdictMatch[1].trim();
+
+    return sections;
+  }
+
+  function renderResults(data) {
+    const { analysis, filename } = data;
+    const parsed = parseAnalysis(analysis);
+
+    document.getElementById('resultFilename').textContent = filename || '';
+
+    // Score ring
+    const score = parsed.score;
+    if (score !== null) {
+      document.getElementById('scoreNum').textContent = score + '%';
+      const circumference = 238.76;
+      const offset = circumference - (score / 100) * circumference;
+      const fill = document.getElementById('scoreFill');
+      const color = score >= 75 ? '#17b978' : score >= 50 ? '#f59e0b' : '#ef4444';
+      fill.style.stroke = color;
+      setTimeout(() => { fill.style.strokeDashoffset = offset; }, 80);
+    }
+
+    // Sections
+    const container = document.getElementById('resultSections');
+    container.innerHTML = '';
+
+    const order = ['matched','missing','strengths','weaknesses','suggestions','keywords'];
+    for (const key of order) {
+      if (!parsed[key]) continue;
+      const { label, items, color } = parsed[key];
+      const sec = document.createElement('div');
+      sec.className = 'result-section';
+      sec.innerHTML = `
+        <div class="section-head">
+          <span class="section-dot" style="background:${color}"></span>
+          <h3>${label}</h3>
+        </div>
+        <div class="section-body">
+          <ul>${items.map(i => `<li style="color:${color}99">${i}</li>`).join('')}</ul>
+        </div>`;
+      container.appendChild(sec);
+    }
+
+    // Verdict
+    if (parsed.verdict) {
+      const v = document.createElement('div');
+      v.className = 'verdict-box';
+      v.innerHTML = `
+        <p style="font-size:.75rem;font-family:'JetBrains Mono',monospace;letter-spacing:.08em;color:var(--ink-ghost);text-transform:uppercase;margin-bottom:10px;">Final Verdict</p>
+        <p>${parsed.verdict}</p>`;
+      container.appendChild(v);
+    }
+
+    // If parsing failed, show raw
+    if (!Object.keys(parsed).filter(k => k !== 'score').length) {
+      const raw = document.createElement('pre');
+      raw.className = 'raw-output';
+      raw.textContent = analysis;
+      container.appendChild(raw);
+    }
+
+    // Show results, hide form
+    mainCard.style.display = 'none';
+    results.classList.add('visible');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // ─── Reset ────────────────────────────────────────────
+  resetBtn.addEventListener('click', () => {
+    results.classList.remove('visible');
+    mainCard.style.display = '';
+    clearFile();
+    jobDesc.value = '';
+    hideError();
+    document.getElementById('resultSections').innerHTML = '';
+    document.getElementById('scoreNum').textContent = '—';
+    document.getElementById('scoreFill').style.strokeDashoffset = '238.76';
+    steps.forEach(s => s.className = 'loader-step');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+</script>
+
+</body>
+</html>
